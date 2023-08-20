@@ -1,7 +1,7 @@
 from toolkit.fileutils import Fileutils
 from omspy_brokers.bypass import Bypass
 from omspy.brokers.zerodha import Zerodha
-
+import os
 
 f = Fileutils()
 
@@ -65,6 +65,14 @@ def _get_zerodha(sec_dir):
         print(f"exception while creating zerodha object {e}")
     finally:
         return zera
+
+
+def remove_token(sec_dir):
+    fpath = sec_dir + 'bypass.yaml'
+    print(f'reading credentials from {fpath}')
+    dct = f.get_lst_fm_yml(fpath)
+    tokpath = sec_dir + dct['userid'] + '.txt'
+    os.remove(tokpath)
 
 
 if __name__ == "__main__":
