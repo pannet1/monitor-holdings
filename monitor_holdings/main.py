@@ -13,11 +13,10 @@ holdings = dir_path + "holdings.csv"
 
 
 try:
-    settings = fileutils.get_lst_fm_yml("settings.yaml")['perc']
+    settings = fileutils.get_lst_fm_yml("settings.yaml")
     perc = settings['perc']
-    secs = settings['secs']
-    broker = get_kite(api="bypass", sec_dir=dir_path)
     perc_col_name = f"perc_gr_{int(perc)}"
+    broker = get_kite(api="bypass", sec_dir=dir_path)
     logging.info("getting holdings for the day ...")
     resp = broker.kite.holdings()
     df = pd.DataFrame(resp)
@@ -99,7 +98,7 @@ try:
         # Remove rows based on the indices collected
         df.drop(rows_to_remove, inplace=True)
         print(df, "\n")
-        sleep(secs)
+        sleep(settings['secs'])
     else:
         print("there is no holdings to process ... exiting")
         sys.exit(0)
