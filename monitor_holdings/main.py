@@ -69,7 +69,8 @@ def order_place(index, row):
             price=0,
         )
         if order_id:
-            logging.info("order {order_id} placed successfully")
+            logging.info(
+                f"order {order_id} placed for {exchsym[1]} successfully")
             return True
     except Exception as e:
         print(traceback.format_exc())
