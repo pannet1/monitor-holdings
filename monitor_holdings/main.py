@@ -13,7 +13,9 @@ holdings = dir_path + "holdings.csv"
 
 
 try:
-    perc = fileutils.get_lst_fm_yml("settings.yaml")['perc']
+    settings = fileutils.get_lst_fm_yml("settings.yaml")['perc']
+    perc = settings['perc']
+    secs = settings['secs']
     broker = get_kite(api="bypass", sec_dir=dir_path)
     perc_col_name = f"perc_gr_{int(perc)}"
     logging.info("getting holdings for the day ...")
@@ -24,6 +26,8 @@ try:
     df = df[selected_cols]
     df['cap'] = (df['realised_quantity'] * df['average_price']).astype(int)
     df['perc'] = ((df['pnl'] / df['cap']) * 100).round(2)
+    df['perc'] = ((df['pnl'] / df['cap']) * 100).where((df['cap']
+                                                        != 0) & (df['pnl'] != 0), 0).round(2)
     cond = f"perc > {perc}"
     df[perc_col_name] = df.eval(cond)
     print(df)
@@ -35,6 +39,7 @@ except Exception as e:
     sys.exit(1)
 
 try:
+    lst = []
     df = pd.read_csv(holdings)
     df['key'] = df['exchange'] + ":" + df['tradingsymbol']
     df.set_index('key', inplace=True)
@@ -76,7 +81,7 @@ def order_place(index, row):
 
 
 try:
-    while True:
+    while len(lst) > 0:
         resp = broker.kite.ohlc(lst)
         dct = {k: {'ltp': v['last_price'], 'high': v['ohlc']['high']}
                for k, v in resp.items()}
@@ -93,7 +98,10 @@ try:
         # Remove rows based on the indices collected
         df.drop(rows_to_remove, inplace=True)
         print(df, "\n")
-        sleep(3)
+        sleep(secs)
+    else:
+        print("there is no holdings to process ... exiting")
+        sys.exit(0)
 except Exception as e:
     remove_token(dir_path)
     print(traceback.format_exc())
