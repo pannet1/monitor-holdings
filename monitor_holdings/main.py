@@ -16,19 +16,18 @@ try:
     perc = fileutils.get_lst_fm_yml("settings.yaml")['perc']
     broker = get_kite(api="bypass", sec_dir=dir_path)
     perc_col_name = f"perc_gr_{int(perc)}"
-    if fileutils.is_file_not_2day(holdings):
-        logging.info("getting holdings for the day ...")
-        resp = broker.kite.holdings()
-        df = pd.DataFrame(resp)
-        selected_cols = ['tradingsymbol', 'exchange', 'instrument_token',
-                         'realised_quantity', 'close_price', 'average_price', 'pnl']
-        df = df[selected_cols]
-        df['cap'] = (df['realised_quantity'] * df['average_price']).astype(int)
-        df['perc'] = ((df['pnl'] / df['cap']) * 100).round(2)
-        cond = f"perc > {perc}"
-        df[perc_col_name] = df.eval(cond)
-        print(df)
-        df.to_csv(holdings, index=False)
+    logging.info("getting holdings for the day ...")
+    resp = broker.kite.holdings()
+    df = pd.DataFrame(resp)
+    selected_cols = ['tradingsymbol', 'exchange', 'instrument_token',
+                     'realised_quantity', 'close_price', 'average_price', 'pnl']
+    df = df[selected_cols]
+    df['cap'] = (df['realised_quantity'] * df['average_price']).astype(int)
+    df['perc'] = ((df['pnl'] / df['cap']) * 100).round(2)
+    cond = f"perc > {perc}"
+    df[perc_col_name] = df.eval(cond)
+    print(df)
+    df.to_csv(holdings, index=False)
 except Exception as e:
     remove_token(dir_path)
     print(traceback.format_exc())
