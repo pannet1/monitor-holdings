@@ -15,6 +15,7 @@ holdings = dir_path + "holdings.csv"
 try:
     settings = fileutils.get_lst_fm_yml("settings.yaml")
     perc = settings['perc']
+    buff = settings['buff']
     perc_col_name = f"perc_gr_{int(perc)}"
     broker = get_kite(api="bypass", sec_dir=dir_path)
     logging.info("getting holdings for the day ...")
@@ -53,6 +54,11 @@ except Exception as e:
 
 
 def order_place(index, row):
+    def get_price():
+        price = row['ltp'] if buff == 0 else row['ltp'] + \
+            (buff / 100 * row['ltp'])
+        return price
+
     try:
         exchsym = index.split(":")
         logging.info(f"placing order for {index}, str{row}")
@@ -61,11 +67,10 @@ def order_place(index, row):
             exchange=exchsym[0],
             transaction_type='SELL',
             quantity=int(row['realised_quantity']),
-            order_type='MARKET',
+            order_type='LIMIT',
             product='CNC',
             variety='regular',
-            trigger_price=0,
-            price=0,
+            price=get_price()
         )
         if order_id:
             logging.info(
