@@ -24,15 +24,16 @@ try:
     resp = broker.kite.holdings()
     df = pd.DataFrame(resp)
     selected_cols = ['tradingsymbol', 'exchange', 'instrument_token',
-                     'quantity', 't1_quantity', 'close_price', 'average_price', 'pnl']
+                     'quantity', 't1_quantity', 'close_price', 'average_price']
     logging.debug(f"filtering columns {str(selected_cols)}")
     df = df[selected_cols]
     logging.debug("applying necessary rules ...")
     df['calculated'] = df['quantity'] + df['t1_quantity']
     df['cap'] = (df['calculated'] * df['average_price']).astype(int)
-    df['perc'] = ((df['pnl'] / df['cap']) * 100).round(2)
-    df['perc'] = ((df['pnl'] / df['cap']) * 100).where((df['cap']
-                                                        != 0) & (df['pnl'] != 0), 0).round(2)
+    df['unrealized'] = (
+        (df['close_price'] - df['average_price']) * df['calculated']).round(2)
+    df['perc'] = ((df['unrealized'] / df['cap']) * 100).where((df['cap']
+                                                               != 0) & (df['unrealized'] != 0), 0).round(2)
     cond = f"perc > {perc}"
     df[perc_col_name] = df.eval(cond)
     print(df)
@@ -53,7 +54,7 @@ try:
     df.set_index('key', inplace=True)
     df = df[df[perc_col_name] != False]
     df.drop(['exchange', 'tradingsymbol', 'average_price',
-            'pnl', 'cap', perc_col_name], axis=1, inplace=True)
+            'unrealized', 'cap', perc_col_name], axis=1, inplace=True)
     lst = df.index.to_list()
 except Exception as e:
     print(traceback.format_exc())
