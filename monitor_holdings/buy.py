@@ -11,7 +11,7 @@ import sys
 
 logging = Logger(10)
 holdings = dir_path + "holdings.csv"
-
+black_file = dir_path + "blacklist.txt"
 try:
     broker = get_kite(api="bypass", sec_dir=dir_path)
     if fileutils.is_file_not_2day(holdings):
@@ -20,6 +20,8 @@ try:
         df = get(resp)
         logging.debug(f"writing to csv ... {holdings}")
         df.to_csv(holdings, index=False)
+        with open(black_file, 'w+') as bf:
+            pass
 except Exception as e:
     print(traceback.format_exc())
     logging.error(f"{str(e)} unable to get holdings")
@@ -63,49 +65,74 @@ except Exception as e:
 
 
 def transact(dct):
-    def get_ltp():
-        ltp = 0
-        key = "NSE:" + dct['tradingsymbol']
-        resp = broker.kite.ltp(key)
-        if resp and isinstance(resp, dict):
-            ltp = resp[key]['last_price']
-        print(ltp)
-        return ltp
+    try:
+        def get_ltp():
+            ltp = -1
+            key = "NSE:" + dct['tradingsymbol']
+            resp = broker.kite.ltp(key)
+            if resp and isinstance(resp, dict):
+                ltp = resp[key]['last_price']
+            return ltp
 
-    ltp = get_ltp()
-    order_id = broker.order_place(
-        tradingsymbol=dct['tradingsymbol'],
-        exchange='NSE',
-        transaction_type='BUY',
-        quantity=int(float(dct['calculated'])),
-        order_type='LIMIT',
-        product='CNC',
-        variety='regular',
-        price=round_to_paise(ltp, buff)
-    )
-    if order_id:
-        logging.info(
-            f"BUY {order_id} placed for {dct['tradingsymbol']} successfully")
-        Utilities().slp_til_nxt_sec()
+        ltp = get_ltp()
+        logging.info(f"ltp for {dct['tradingsymbol']} is {ltp}")
+        if ltp <= 0:
+            return dct['tradingsymbol']
+
         order_id = broker.order_place(
             tradingsymbol=dct['tradingsymbol'],
             exchange='NSE',
-            transaction_type='SELL',
+            transaction_type='BUY',
             quantity=int(float(dct['calculated'])),
             order_type='LIMIT',
             product='CNC',
             variety='regular',
-            price=round_to_paise(ltp, dct['res_3'], "sub")
+            price=round_to_paise(ltp, buff)
         )
         if order_id:
             logging.info(
-                f"SELL {order_id} placed for {dct['tradingsymbol']} successfully")
-    else:
-        logging.error(f"unable to place order for {dct['tradingsymbol']}")
+                f"BUY {order_id} placed for {dct['tradingsymbol']} successfully")
+            order_id = broker.order_place(
+                tradingsymbol=dct['tradingsymbol'],
+                exchange='NSE',
+                transaction_type='SELL',
+                quantity=int(float(dct['calculated'])),
+                order_type='LIMIT',
+                product='CNC',
+                variety='regular',
+                price=round_to_paise(ltp, dct['res_3'], "sub")
+            )
+            if order_id:
+                logging.info(
+                    f"SELL {order_id} placed for {dct['tradingsymbol']} successfully")
+        else:
+            print(traceback.format_exc())
+            logging.error(f"unable to place order for {dct['tradingsymbol']}")
+            return dct['tradingsymbol']
+    except Exception as e:
+        print(traceback.format_exc())
+        logging.error(f"{str(e)} while placing order")
+        return dct['tradingsymbol']
 
 
 if any(lst_tlyne):
+    new_list = []
     # Filter the original list based on the subset of 'tradingsymbol' values
-    lst_orders = [d for d in lst_dct_tlyne if d['tradingsymbol'] in lst_tlyne]
+    lst_all_orders = [
+        d for d in lst_dct_tlyne if d['tradingsymbol'] in lst_tlyne]
+    # Read the list of previously failed symbols from the file
+    with open(black_file, 'r') as file:
+        lst_failed_symbols = [line.strip() for line in file.readlines()]
+    logging.info(f"ignored symbols: {lst_failed_symbols}")
+    lst_orders = [d for d in lst_all_orders if d['tradingsymbol']
+                  not in lst_failed_symbols]
     for d in lst_orders:
-        transact(d)
+        failed_symbol = transact(d)
+        if failed_symbol:
+            new_list.append(failed_symbol)
+        Utilities().slp_til_nxt_sec()
+
+    if any(new_list):
+        with open(black_file, 'w') as file:
+            for symbol in new_list:
+                file.write(symbol + '\n')
