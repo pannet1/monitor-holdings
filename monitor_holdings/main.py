@@ -1,44 +1,18 @@
 from toolkit.logger import Logger
-from toolkit.fileutils import Fileutils
+from toolkit.currency import round_to_paise
 from login_get_kite import get_kite, remove_token
-import pandas as pd
 import sys
 from time import sleep
 import traceback
+from constants import dir_path, buff, secs, perc_col_name
+from positions import get
 
-dir_path = "../../../"
-logging = Logger(10)
-fileutils = Fileutils()
-holdings = dir_path + "holdings.csv"
-settings_file = "settings.yaml"
-
+logging = Logger(30, dir_path + "main.log")
 try:
-    logging.debug(f"read settings from {settings_file}")
-    settings = fileutils.get_lst_fm_yml(settings_file)
-    perc = settings['perc']
-    buff = settings['buff']
-    perc_col_name = f"perc_gr_{int(perc)}"
-    logging.debug("create a column named after user settings {perc_col_name}")
     broker = get_kite(api="bypass", sec_dir=dir_path)
     logging.debug("getting holdings for the day ...")
     resp = broker.kite.holdings()
-    df = pd.DataFrame(resp)
-    selected_cols = ['tradingsymbol', 'exchange', 'instrument_token',
-                     'quantity', 't1_quantity', 'close_price', 'average_price']
-    logging.debug(f"filtering columns {str(selected_cols)}")
-    df = df[selected_cols]
-    logging.debug("applying necessary rules ...")
-    df['calculated'] = df['quantity'] + df['t1_quantity']
-    df['cap'] = (df['calculated'] * df['average_price']).astype(int)
-    df['unrealized'] = (
-        (df['close_price'] - df['average_price']) * df['calculated']).round(2)
-    df['perc'] = ((df['unrealized'] / df['cap']) * 100).where((df['cap']
-                                                               != 0) & (df['unrealized'] != 0), 0).round(2)
-    cond = f"perc > {perc}"
-    df[perc_col_name] = df.eval(cond)
-    print(df)
-    logging.debug(f"writing to csv ... {holdings}")
-    df.to_csv(holdings, index=False)
+    df = get(resp)
 except Exception as e:
     remove_token(dir_path)
     print(traceback.format_exc())
@@ -47,8 +21,6 @@ except Exception as e:
 
 try:
     lst = []
-    logging.debug(f"reading from csv ...{holdings}")
-    df = pd.read_csv(holdings)
     logging.debug("filtering for required columns")
     df['key'] = df['exchange'] + ":" + df['tradingsymbol']
     df.set_index('key', inplace=True)
@@ -63,11 +35,6 @@ except Exception as e:
 
 
 def order_place(index, row):
-    def get_price():
-        price = row['ltp'] if buff == 0 else row['ltp'] + \
-            (buff / 100 * row['ltp'])
-        return price
-
     try:
         exchsym = index.split(":")
         logging.info(f"placing order for {index}, str{row}")
@@ -79,7 +46,7 @@ def order_place(index, row):
             order_type='LIMIT',
             product='CNC',
             variety='regular',
-            price=get_price()
+            price=round_to_paise(row['ltp'], buff)
         )
         if order_id:
             logging.info(
@@ -113,7 +80,7 @@ try:
 
         df.drop(rows_to_remove, inplace=True)
         print(df, "\n")
-        sleep(settings['secs'])
+        sleep(secs)
     else:
         logging.info("there is no holdings to process ... exiting")
         sys.exit(0)
