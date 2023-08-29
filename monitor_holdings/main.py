@@ -5,7 +5,7 @@ import sys
 from time import sleep
 import traceback
 from constants import dir_path, buff, secs, perc_col_name
-from positions import get
+from holdings import get
 
 logging = Logger(30, dir_path + "main.log")
 try:
@@ -66,10 +66,16 @@ try:
     logging.debug("are we having any holdings to check")
     while len(lst) > 0:
         resp = broker.kite.ohlc(lst)
-        dct = {k: {'ltp': v['last_price'], 'high': v['ohlc']['high']}
+        dct = {k: {'ltp': v['last_price'],
+                   'open': v['ohlc']['open'],
+                   'high': v['ohlc']['high'],
+                   'low': v['ohlc']['low'],
+                   }
                for k, v in resp.items()}
         df['ltp'] = df.index.map(lambda x: dct[x]['ltp'])
+        df['open'] = df.index.map(lambda x: dct[x]['open'])
         df['high'] = df.index.map(lambda x: dct[x]['high'])
+        df['low'] = df.index.map(lambda x: dct[x]['low'])
 
         rows_to_remove = []
         for index, row in df.iterrows():

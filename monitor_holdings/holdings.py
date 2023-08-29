@@ -5,8 +5,8 @@ import pandas as pd
 
 def get(resp):
     df = pd.DataFrame(resp)
-    selected_cols = ['tradingsymbol', 'exchange', 'instrument_token',
-                     'quantity', 't1_quantity', 'close_price', 'average_price']
+    selected_cols = ['tradingsymbol', 'exchange', 'quantity', 't1_quantity',
+                     'close_price', 'average_price']
     df = df[selected_cols]
     df['calculated'] = df['quantity'] + df['t1_quantity']
     df['cap'] = (df['calculated'] * df['average_price']).astype(int)
