@@ -88,7 +88,7 @@ def transact(dct):
         order_id = broker.order_place(
             tradingsymbol=dct['tradingsymbol'],
             exchange='NSE',
-            transaction_type='BUY',
+            transaction_type='SELL',
             quantity=int(float(dct['calculated'])),
             order_type='LIMIT',
             product='CNC',
