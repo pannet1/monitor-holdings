@@ -25,7 +25,7 @@ try:
     df['key'] = df['exchange'] + ":" + df['tradingsymbol']
     df.set_index('key', inplace=True)
     df = df[df[perc_col_name] != False]
-    df.drop(['exchange', 'tradingsymbol', 'average_price',
+    df.drop(['exchange', 'tradingsymbol', 'average_price', 'last_price',
             'unrealized', 'cap', perc_col_name], axis=1, inplace=True)
     lst = df.index.to_list()
 except Exception as e:
