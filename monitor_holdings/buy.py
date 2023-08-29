@@ -47,15 +47,15 @@ try:
         logging.debug(f"reading from trendlyne ...{lst_tlyne}")
         lst_tlyne = [
             x for x in lst_tlyne if x not in lst]
-        logging.debug(f"filtered from holdings: {lst_tlyne}")
+        logging.debug(f"filtered from holdings: {lst}")
 
         # get list from positions
         lst_dct = broker.positions
         if lst_dct and any(lst_dct):
-            lst = [dct['tradingsymbol'] for dct in lst_dct]
+            lst = [dct['symbol'] for dct in lst_dct]
             lst_tlyne = [
                 x for x in lst_tlyne if x not in lst]
-            logging.debug(f"filtered from positions ...{lst_tlyne}")
+            logging.debug(f"filtered from positions ...{lst}")
 except Exception as e:
     print(traceback.format_exc())
     logging.error(f"{str(e)} unable to read positions")
@@ -69,7 +69,8 @@ def transact(dct):
         resp = broker.kite.ltp(key)
         if resp and isinstance(resp, dict):
             ltp = resp[key]['last_price']
-            return ltp
+        print(ltp)
+        return ltp
 
     ltp = get_ltp()
     order_id = broker.order_place(
@@ -85,6 +86,7 @@ def transact(dct):
     if order_id:
         logging.info(
             f"BUY {order_id} placed for {dct['tradingsymbol']} successfully")
+        Utilities().slp_til_nxt_sec()
         order_id = broker.order_place(
             tradingsymbol=dct['tradingsymbol'],
             exchange='NSE',
@@ -107,4 +109,3 @@ if any(lst_tlyne):
     lst_orders = [d for d in lst_dct_tlyne if d['tradingsymbol'] in lst_tlyne]
     for d in lst_orders:
         transact(d)
-        Utilities().slp_til_nxt_sec()
