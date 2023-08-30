@@ -2,7 +2,7 @@ from toolkit.logger import Logger
 from toolkit.currency import round_to_paise
 from toolkit.utilities import Utilities
 from login_get_kite import get_kite
-from constants import dir_path, fileutils, buff
+from constants import dir_path, fileutils, buff, max_target
 from holdings import get
 from trendlyne import Trendlyne
 import pandas as pd
@@ -64,8 +64,15 @@ except Exception as e:
     sys.exit(1)
 
 
+def calc_target(ltp, perc):
+    resistance = round_to_paise(ltp, perc)
+    target = round_to_paise(ltp, max_target)
+    return max(resistance, target)
+
+
 def transact(dct):
     try:
+
         def get_ltp():
             ltp = -1
             key = "NSE:" + dct['tradingsymbol']
@@ -100,7 +107,7 @@ def transact(dct):
                 order_type='LIMIT',
                 product='CNC',
                 variety='regular',
-                price=round_to_paise(ltp, dct['res_3'], "sub")
+                price=calc_target(ltp, dct['res_3'])
             )
             if order_id:
                 logging.info(
