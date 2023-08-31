@@ -8,6 +8,7 @@ from trendlyne import Trendlyne
 import pandas as pd
 import traceback
 import sys
+import os
 
 logging = Logger(10)
 holdings = dir_path + "holdings.csv"
@@ -17,9 +18,10 @@ try:
     if fileutils.is_file_not_2day(holdings):
         logging.debug("getting holdings for the day ...")
         resp = broker.kite.holdings()
-        df = get(resp)
-        logging.debug(f"writing to csv ... {holdings}")
-        df.to_csv(holdings, index=False)
+        if resp and any(resp):
+            df = get(resp)
+            logging.debug(f"writing to csv ... {holdings}")
+            df.to_csv(holdings, index=False)
         with open(black_file, 'w+') as bf:
             pass
 except Exception as e:
@@ -29,23 +31,25 @@ except Exception as e:
 
 
 try:
-    logging.debug(f"reading from csv ...{holdings}")
-    df_holdings = pd.read_csv(holdings)
-    if not df_holdings.empty:
-        lst = df_holdings['tradingsymbol'].to_list()
-    else:
-        lst = []
+    lst = []
+    if os.path.getsize(holdings):
+        logging.debug(f"reading from csv ...{holdings}")
+        df_holdings = pd.read_csv(holdings)
+        if not df_holdings.empty:
+            lst = df_holdings['tradingsymbol'].to_list()
 
     # get list from Trendlyne
+    lst_tlyne = []
     lst_dct_tlyne = Trendlyne().entry()
-    lst_tlyne = [dct['tradingsymbol'] for dct in lst_dct_tlyne]
+    if lst_dct_tlyne and any(lst_tlyne):
+        lst_tlyne = [dct['tradingsymbol'] for dct in lst_dct_tlyne]
 except Exception as e:
     print(traceback.format_exc())
     logging.error(f"{str(e)} unable to read holdings or Trendlyne calls")
     sys.exit(1)
 
 try:
-    if lst_tlyne and any(lst_tlyne):
+    if any(lst_tlyne):
         logging.debug(f"reading from trendlyne ...{lst_tlyne}")
         lst_tlyne = [
             x for x in lst_tlyne if x not in lst]
@@ -72,7 +76,6 @@ def calc_target(ltp, perc):
 
 def transact(dct):
     try:
-
         def get_ltp():
             ltp = -1
             key = "NSE:" + dct['tradingsymbol']
