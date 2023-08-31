@@ -32,7 +32,9 @@ except Exception as e:
 
 try:
     lst = []
-    if os.path.getsize(holdings):
+    file_size_in_bytes = os.path.getsize(holdings)
+    logging.debug(f"holdings file size: {file_size_in_bytes} bytes")
+    if file_size_in_bytes > 50:
         logging.debug(f"reading from csv ...{holdings}")
         df_holdings = pd.read_csv(holdings)
         if not df_holdings.empty:
