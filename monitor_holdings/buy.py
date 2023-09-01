@@ -43,7 +43,8 @@ try:
     # get list from Trendlyne
     lst_tlyne = []
     lst_dct_tlyne = Trendlyne().entry()
-    if lst_dct_tlyne and any(lst_tlyne):
+    if lst_dct_tlyne and any(lst_dct_tlyne):
+        logging.debug(f"stocks returned by trendlyne {lst_dct_tlyne}")
         lst_tlyne = [dct['tradingsymbol'] for dct in lst_dct_tlyne]
 except Exception as e:
     print(traceback.format_exc())
@@ -52,7 +53,7 @@ except Exception as e:
 
 try:
     if any(lst_tlyne):
-        logging.debug(f"reading from trendlyne ...{lst_tlyne}")
+        logging.debug(f"reading trendlyne ...{lst_tlyne}")
         lst_tlyne = [
             x for x in lst_tlyne if x not in lst]
         logging.debug(f"filtered from holdings: {lst}")
