@@ -10,9 +10,10 @@ import traceback
 import sys
 import os
 
-logging = Logger(10)
+logging = Logger(30)
 holdings = dir_path + "holdings.csv"
 black_file = dir_path + "blacklist.txt"
+
 try:
     broker = get_kite(api="bypass", sec_dir=dir_path)
     if fileutils.is_file_not_2day(holdings):
@@ -119,10 +120,6 @@ def transact(dct):
             if order_id:
                 logging.info(
                     f"SELL {order_id} placed for {dct['tradingsymbol']} successfully")
-        else:
-            print(traceback.format_exc())
-            logging.error(f"unable to place order for {dct['tradingsymbol']}")
-            return dct['tradingsymbol']
     except Exception as e:
         print(traceback.format_exc())
         logging.error(f"{str(e)} while placing order")
@@ -134,18 +131,22 @@ if any(lst_tlyne):
     # Filter the original list based on the subset of 'tradingsymbol' values
     lst_all_orders = [
         d for d in lst_dct_tlyne if d['tradingsymbol'] in lst_tlyne]
+
     # Read the list of previously failed symbols from the file
     with open(black_file, 'r') as file:
         lst_failed_symbols = [line.strip() for line in file.readlines()]
     logging.info(f"ignored symbols: {lst_failed_symbols}")
     lst_orders = [d for d in lst_all_orders if d['tradingsymbol']
                   not in lst_failed_symbols]
+
+    # place trades for symbol
     for d in lst_orders:
         failed_symbol = transact(d)
         if failed_symbol:
             new_list.append(failed_symbol)
         Utilities().slp_til_nxt_sec()
 
+    # write the failed symbols to file, so we dont repeat them again
     if any(new_list):
         with open(black_file, 'w') as file:
             for symbol in new_list:

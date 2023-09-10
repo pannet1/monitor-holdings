@@ -7,7 +7,7 @@ import traceback
 from constants import dir_path, buff, secs, perc_col_name
 from holdings import get
 
-logging = Logger(30, dir_path + "main.log")
+logging = Logger(30)
 try:
     broker = get_kite(api="bypass", sec_dir=dir_path)
     logging.debug("getting holdings for the day ...")
