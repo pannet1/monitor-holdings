@@ -6,6 +6,4 @@ git+https://github.com/pannet1/kiteext
 kiteconnect
 pandas
 pyotp
-selenium
-webdriver_manager
 bs4
