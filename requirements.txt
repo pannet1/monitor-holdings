@@ -1,5 +1,6 @@
 wheel
 setuptools==58.2.0
+git+https://github.com/pannet1/omspy
 git+https://github.com/pannet1/omspy-brokers
 git+https://github.com/pannet1/toolkit
 git+https://github.com/pannet1/kiteext
