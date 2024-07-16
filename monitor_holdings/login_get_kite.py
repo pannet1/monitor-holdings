@@ -1,4 +1,4 @@
-from constants import logging, CNFG, FUTL, dir_path
+from constants import logging, CNFG, O_FUTL, S_DATA
 import os
 
 
@@ -17,9 +17,9 @@ def _get_bypass():
         from omspy_brokers.bypass import Bypass
 
         dct = CNFG["bypass"]
-        tokpath = dir_path + dct["userid"] + ".txt"
+        tokpath = S_DATA + dct["userid"] + ".txt"
         enctoken = None
-        if not FUTL.is_file_not_2day(tokpath):
+        if not O_FUTL.is_file_not_2day(tokpath):
             print(f"{tokpath} modified today ... reading {enctoken}")
             with open(tokpath, "r") as tf:
                 enctoken = tf.read()
@@ -43,7 +43,7 @@ def _get_zerodha():
         from omspy_brokers.zerodha import Zerodha
 
         dct = CNFG["zerodha"]
-        tokpath = dir_path + dct["userid"] + ".txt"
+        tokpath = S_DATA + dct["userid"] + ".txt"
         zera = Zerodha(
             userid=dct["userid"],
             password=dct["password"],
@@ -51,7 +51,7 @@ def _get_zerodha():
             api_key=dct["api_key"],
             secret=dct["secret"],
         )
-        if not FUTL.is_file_not_2day(tokpath):
+        if not O_FUTL.is_file_not_2day(tokpath):
             with open(tokpath, "r") as tf:
                 enctoken = tf.read()
                 if len(enctoken) > 5:
@@ -65,10 +65,10 @@ def _get_zerodha():
         print(f"exception while creating zerodha object {e}")
 
 
-def remove_token(dir_path):
+def remove_token(S_DATA):
     dct = CNFG["bypass"]
-    tokpath = dir_path + dct["userid"] + ".txt"
-    if FUTL.is_file_exists(tokpath):
+    tokpath = S_DATA + dct["userid"] + ".txt"
+    if O_FUTL.is_file_exists(tokpath):
         os.remove(tokpath)
 
 
