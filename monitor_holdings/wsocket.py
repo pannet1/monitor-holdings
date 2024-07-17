@@ -21,7 +21,7 @@ class Wsocket:
         self.ticks = []
         self.tokens = tokens
         if CNFG["broker"] == "bypass":
-            self.kws = kite.kws
+            self.kws = kite.kws()
         else:
             self.kws = KiteTicker(kite.api_key, kite.access_token)
         self.kws.on_ticks = self.on_ticks

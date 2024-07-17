@@ -200,6 +200,9 @@ def main():
     dump()
     ## make a list of holdings we want to process
     df = get_holdings()
+    if df.empty:
+        logging.info("No holdings to process. Exiting")
+        sys.exit(0)
     ## read tokens from dumped files
     df = read_tokens(df)
     ## subscribe for rate feed for each instrument token
