@@ -9,6 +9,7 @@ from symbols import dump, get_tokens_from_list
 from wsocket import Wsocket
 from typing import List, Dict
 import pandas as pd
+from copy import deepcopy
 
 
 broker = get_kite()
@@ -38,10 +39,70 @@ def get_holdings():
         )
     except Exception as e:
         print_exc()
-        logging.error(f"{str(e)} while reading holdings")
+        logging.error(f"{str(e)} while reading holdings, re-check by running again")
         sys.exit(1)
     else:
         return df
+
+
+def read_tokens(df):
+    try:
+        lst = []
+        lst = df.index.to_list()
+        if len(lst) > 0:
+            dct_with_tkns = get_tokens_from_list(lst)
+            df["instrument_token"] = df.index.map(lambda x: dct_with_tkns[x])
+        return df
+    except Exception as e:
+        print(f"{str(e)} unable to get tokens")
+        logging.error(
+            f"{str(e)} delete the exchange master files in the data directory and try again"
+        )
+        print_exc()
+        sys.exit(1)
+
+
+def connect(df):
+    try:
+        #  make a list of instrument_tokens from df
+        df_token = df[["instrument_token"]]
+        lst = df_token.to_dict(orient="records")
+        lst = [dct["instrument_token"] for dct in lst]
+        # subscribe to websocket
+        Ws = Wsocket(broker.kite, lst)
+        return Ws
+    except Exception as e:
+        print(f"{str(e)} unable to connect")
+        print_exc()
+
+
+def get_ohl(Ws):
+    try:
+        resp = None
+        while not resp:
+            resp: List[Dict] = Ws.ticks
+            sleep(1)
+        return resp
+    except Exception as e:
+        print(f"{str(e)} unable to get ohlc from websocket")
+        print_exc()
+
+
+def flatten_ohlc(resp: List[Dict]) -> pd.DataFrame:
+    try:
+        rcopy = deepcopy(resp)
+        resp_df = pd.DataFrame()
+        for dct in rcopy:
+            dct["open"] = dct["ohlc"]["open"]
+            dct["high"] = dct["ohlc"]["high"]
+            dct["close"] = dct["ohlc"]["close"]
+            dct.pop("ohlc")
+        resp_df = pd.DataFrame(rcopy)
+    except Exception as e:
+        print(f"{str(e)} unable to flatten ohlc")
+        print_exc()
+    finally:
+        return resp_df
 
 
 def place_order(index, row):
@@ -70,38 +131,7 @@ def place_order(index, row):
         return False
 
 
-def read_tokens(df):
-    try:
-        lst = []
-        lst = df.index.to_list()
-        if len(lst) > 0:
-            dct_with_tkns = get_tokens_from_list(lst)
-            df["instrument_token"] = df.index.map(lambda x: dct_with_tkns[x])
-        return df
-    except Exception as e:
-        print(f"{str(e)} unable to get tokens")
-        print_exc()
-
-
-def connect(df):
-    #  make a list of instrument_tokens from df
-    df_token = df[["instrument_token"]]
-    lst = df_token.to_dict(orient="records")
-    lst = [dct["instrument_token"] for dct in lst]
-    # subscribe to websocket
-    Ws = Wsocket(broker.kite, lst)
-    return Ws
-
-
-def get_ohl(Ws):
-    resp = None
-    while not resp:
-        resp: List[Dict] = Ws.ticks
-        sleep(1)
-    return resp
-
-
-def run(df):
+def check_conditions(df):
     try:
         rows_to_remove = []
         for index, row in df.iterrows():
@@ -114,48 +144,41 @@ def run(df):
                     rows_to_remove.append(index)
 
         df.drop(rows_to_remove, inplace=True)
-        print(df, "\n")
         sleep(secs)
     except Exception as e:
         remove_token(S_DATA)
         print_exc()
         logging.error(f"{str(e)} in the main loop")
+    finally:
+        return df
 
 
-def flatten_ohlc(resp: List[Dict]) -> List[Dict]:
-    try:
-        for dct in resp:
-            dct["open"] = dct["ohlc"]["open"]
-            dct["high"] = dct["ohlc"]["high"]
-            dct["close"] = dct["ohlc"]["close"]
-            dct.pop("ohlc")
-        return resp
-    except Exception as e:
-        print(f"{str(e)} unable to flatten ohlc")
-        print_exc()
-
-
-def main():
-    dump()
-    df = get_holdings()
-    ## preparing to get quotes
-    df = read_tokens(df)
-    Ws = connect(df)
+def run(df, Ws):
     while not df.empty:
+        ## read the quotes for the tokens
         resp = get_ohl(Ws)
-        print(resp)
-        sleep(5)
-        resp = flatten_ohlc(resp)
-        resp_df = pd.DataFrame(resp)
+        ## split ohlc values and move to seperate keys
+        resp_df = flatten_ohlc(resp)
+        ## merge with holdings
         df = df.merge(resp_df, on="instrument_token", how="left")
+        # place order for if conditions match
+        df = check_conditions(df)
         # drop columns that are not required
         dropped_colmns = ["last_price", "open", "high", "close"]
         df.drop(dropped_colmns, axis=1, inplace=True)
-        print(df.columns)
 
-        df.to_csv(S_DATA + "temp.csv", index=False)
-        print(df)
-        # run(df)
+
+def main():
+    # download master once in a day
+    dump()
+    ## make a list of holdings we want to process
+    df = get_holdings()
+    ## read tokens from dumped files
+    df = read_tokens(df)
+    ## subscribe for rate feed for each instrument token
+    Ws = connect(df)
+    df.to_csv(S_DATA + "holdings.csv", index=False)
+    run(df, Ws)
 
 
 main()
