@@ -23,7 +23,11 @@ def get_holdings():
         logging.debug("filtering for required columns")
         df["key"] = df["exchange"] + ":" + df["tradingsymbol"]
         df.set_index("key", inplace=True)
-        # df = df[df[perc_col_name] != False]
+        """
+            comment the below line to test if the algo is working fine
+            so all the symbols will be processed without the conditions
+        """
+        df = df[df[perc_col_name] != 0]
         df.drop(
             [
                 "exchange",
@@ -79,9 +83,12 @@ def connect(df):
 def get_ohl(Ws):
     try:
         resp = None
-        while not resp:
-            resp: List[Dict] = Ws.ticks
+        while resp is None or not any(resp):
+            resp = Ws.ticks
             sleep(1)
+            logging.info("waiting for the quote")
+        print(resp)
+        logging.info("got resp")
         return resp
     except Exception as e:
         print(f"{str(e)} unable to get ohlc from websocket")
@@ -103,6 +110,24 @@ def flatten_ohlc(resp: List[Dict]) -> pd.DataFrame:
         print_exc()
     finally:
         return resp_df
+
+
+def merge(df, resp_df):
+    try:
+        # Store the original index in a new column
+        df["exchsym"] = df.index
+
+        # Perform the merge
+        df = df.merge(resp_df, on="instrument_token", how="left")
+
+        # Set the original index back
+        df.set_index("exchsym", inplace=True)
+
+    except Exception as e:
+        print(f"{str(e)} unable to merge")
+        print_exc()
+    finally:
+        return df
 
 
 def place_order(index, row):
@@ -142,6 +167,8 @@ def check_conditions(df):
                 is_placed = place_order(index, row)
                 if is_placed:
                     rows_to_remove.append(index)
+            else:
+                logging.debug(f"{index} did not meet the conditions")
 
         df.drop(rows_to_remove, inplace=True)
         sleep(secs)
@@ -160,12 +187,12 @@ def run(df, Ws):
         ## split ohlc values and move to seperate keys
         resp_df = flatten_ohlc(resp)
         ## merge with holdings
-        df = df.merge(resp_df, on="instrument_token", how="left")
-        # place order for if conditions match
+        df = merge(df, resp_df)
+        # place order if conditions match
         df = check_conditions(df)
         # drop columns that are not required
-        dropped_colmns = ["last_price", "open", "high", "close"]
-        df.drop(dropped_colmns, axis=1, inplace=True)
+        columns_to_remove = ["last_price", "open", "high", "close"]
+        df.drop(columns_to_remove, axis=1, inplace=True)
 
 
 def main():
@@ -177,7 +204,7 @@ def main():
     df = read_tokens(df)
     ## subscribe for rate feed for each instrument token
     Ws = connect(df)
-    df.to_csv(S_DATA + "holdings.csv", index=False)
+    df.to_csv(S_DATA + "holdings.csv", index=True)
     run(df, Ws)
 
 

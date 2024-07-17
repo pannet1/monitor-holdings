@@ -36,12 +36,12 @@ class Wsocket:
         self.kws.connect(threaded=True)
 
     def on_ticks(self, ws, ticks):
-        if any(ticks):
-            self.ticks = filter_ws_keys(ticks)
+        logging.debug("on tick event called")
+        self.ticks = filter_ws_keys(ticks)
 
     def on_connect(self, ws, response):
         if response:
-            print(f"on connect: {response}")
+            logging.debug(f"on connect: {response}")
         # Subscribe to a list of instrument_tokens (Index first).
         # self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
         if any(self.tokens):
@@ -52,6 +52,7 @@ class Wsocket:
     def on_close(self, ws, code, reason):
         # On connection close stop the main loop
         # Reconnection will not happen after executing `ws.stop()`
+        logging.info("ws closed with code {}: {}".format(code, reason))
         ws.stop()
 
     def on_error(self, ws, code, reason):
