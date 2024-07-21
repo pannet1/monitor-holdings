@@ -1,6 +1,6 @@
 wheel
 setuptools==58.2.0
-pydantic=1.9
+pydantic==1.9
 PyYAML==6.0
 pyOpenssl==21.0
 git+https://github.com/pannet1/omspy
